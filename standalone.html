@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Age & Math Calculator</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#f0f2f5',
+            primary: '#6366f1',
+            primaryHover: '#4f46e5',
+            surface: '#ffffff',
+          },
+          boxShadow: {
+            neu: '8px 8px 16px #d1d5db, -8px -8px 16px #ffffff',
+            neuPressed: 'inset 4px 4px 8px #d1d5db, inset -4px -4px 8px #ffffff',
+            neuSm: '4px 4px 8px #d1d5db, -4px -4px 8px #ffffff',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    body { margin: 0; display: flex; place-items: center; min-height: 100vh; justify-content: center; background-color: #f0f2f5; }
+    #root {
+      width: 100%; max-width: 480px; height: 100vh; margin: 0 auto;
+      position: relative; background-color: #f0f2f5;
+      box-shadow: 0 0 40px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column;
+    }
+    @media (min-width: 481px) {
+      #root { height: 90vh; border-radius: 2rem; margin-top: 5vh; }
+    }
+  </style>
+</head>
+<body class="text-gray-800 antialiased selection:bg-primary selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- AdModal Component ---
+    function AdModal({ isOpen, onClose, onReward }) {
+      const [timeLeft, setTimeLeft] = useState(5);
+
+      useEffect(() => {
+        let timer;
+        if (isOpen) {
+          setTimeLeft(5);
+          timer = setInterval(() => {
+            setTimeLeft(prev => {
+              if (prev <= 1) { clearInterval(timer); return 0; }
+              return prev - 1;
+            });
+          }, 1000);
+        }
+        return () => clearInterval(timer);
+      }, [isOpen]);
+
+      if (!isOpen) return null;
+
+      const handleClose = () => {
+        if (timeLeft === 0) { onReward(); onClose(); }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-surface w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl relative flex flex-col items-center transform transition-all scale-100">
+            <div className="w-full flex justify-between items-center p-4 border-b border-gray-100">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Advertisement</span>
+              <button onClick={handleClose} disabled={timeLeft > 0} className={`p-2 rounded-full transition-colors ${timeLeft > 0 ? 'text-gray-300 cursor-not-allowed bg-gray-50' : 'text-gray-600 hover:bg-gray-100 hover:text-black'}`}>
+                {timeLeft > 0 ? <span className="text-sm font-bold w-5 h-5 flex items-center justify-center">{timeLeft}</span> : <i className="fa-solid fa-xmark"></i>}
+              </button>
+            </div>
+            <div className="p-8 w-full flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+                <i className="fa-regular fa-circle-play text-4xl text-primary"></i>
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Sponsor message playing...</h2>
+              <p className="text-gray-500 text-sm mb-6">Please wait to unlock your premium content. Supporting our sponsors keeps this app free!</p>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all duration-1000 ease-linear" style={{ width: `${((5 - timeLeft) / 5) * 100}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- AgeCalculator Component ---
+    function AgeCalculator() {
+      const [dob, setDob] = useState('');
+      const [ageData, setAgeData] = useState(null);
+      const [premiumUnlocked, setPremiumUnlocked] = useState(false);
+      const [showAd, setShowAd] = useState(false);
+
+      const calculateAge = (dateString) => {
+        if (!dateString) return;
+        const birthDate = new Date(dateString);
+        const today = new Date();
+        
+        let years = today.getFullYear() - birthDate.getFullYear();
+        let months = today.getMonth() - birthDate.getMonth();
+        let days = today.getDate() - birthDate.getDate();
+
+        if (days < 0) { months--; const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0); days += lastMonth.getDate(); }
+        if (months < 0) { years--; months += 12; }
+
+        const timeDiff = today.getTime() - birthDate.getTime();
+        const totalDays = Math.floor(timeDiff / (1000 * 3600 * 24));
+        const totalWeeks = Math.floor(totalDays / 7);
+
+        let nextBday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+        if (nextBday < today) { nextBday.setFullYear(today.getFullYear() + 1); }
+        const daysToNextBday = Math.ceil((nextBday.getTime() - today.getTime()) / (1000 * 3600 * 24));
+
+        setAgeData({ years, months, days, totalDays, totalWeeks, daysToNextBday });
+        setPremiumUnlocked(false);
+      };
+
+      return (
+        <div className="p-6 h-full flex flex-col gap-6">
+          <div className="bg-surface p-6 rounded-3xl shadow-neu flex flex-col gap-3">
+            <label className="text-gray-500 text-sm font-semibold ml-2 flex items-center gap-2">
+              <i className="fa-solid fa-calendar"></i> Select Date of Birth
+            </label>
+            <div className="relative shadow-neuPressed rounded-2xl overflow-hidden bg-background">
+              <input type="date" value={dob} onChange={e => { setDob(e.target.value); calculateAge(e.target.value); }} className="w-full bg-transparent p-4 outline-none text-gray-800 font-medium font-sans" max={new Date().toISOString().split("T")[0]} />
+            </div>
+          </div>
+
+          {ageData && (
+            <div className="bg-surface p-6 rounded-3xl shadow-neu flex flex-col gap-4">
+              <h2 className="text-gray-400 text-xs font-bold uppercase tracking-wider text-center">Your Exact Age</h2>
+              <div className="flex justify-between items-center bg-background rounded-2xl p-4 shadow-neuPressed">
+                <div className="flex flex-col items-center flex-1"><span className="text-3xl font-bold text-primary">{ageData.years}</span><span className="text-xs text-gray-500 font-medium">Years</span></div>
+                <div className="w-px h-10 bg-gray-200"></div>
+                <div className="flex flex-col items-center flex-1"><span className="text-3xl font-bold text-primary">{ageData.months}</span><span className="text-xs text-gray-500 font-medium">Months</span></div>
+                <div className="w-px h-10 bg-gray-200"></div>
+                <div className="flex flex-col items-center flex-1"><span className="text-3xl font-bold text-primary">{ageData.days}</span><span className="text-xs text-gray-500 font-medium">Days</span></div>
+              </div>
+            </div>
+          )}
+
+          {ageData && (
+            <div className="mt-2 mb-8">
+              {!premiumUnlocked ? (
+                <button onClick={() => setShowAd(true)} className="w-full bg-primary hover:bg-primaryHover text-white p-4 rounded-2xl font-bold shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                  <i className="fa-solid fa-lock-open"></i> Watch Ad to Unlock Fun Facts
+                </button>
+              ) : (
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-3xl shadow-neu border border-white flex flex-col gap-5">
+                  <h2 className="text-primary text-sm font-bold uppercase tracking-wider flex items-center gap-2"><i className="fa-solid fa-star"></i> Premium Facts</h2>
+                  <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm"><div className="bg-indigo-100 p-3 rounded-xl text-indigo-500"><i className="fa-solid fa-clock"></i></div><div><div className="text-xs text-gray-400 font-medium">Total Days Alive</div><div className="text-lg font-bold text-gray-800">{ageData.totalDays.toLocaleString()} days</div></div></div>
+                  <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm"><div className="bg-purple-100 p-3 rounded-xl text-purple-500"><i className="fa-solid fa-calendar-days"></i></div><div><div className="text-xs text-gray-400 font-medium">Total Weeks Alive</div><div className="text-lg font-bold text-gray-800">{ageData.totalWeeks.toLocaleString()} weeks</div></div></div>
+                  <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm"><div className="bg-pink-100 p-3 rounded-xl text-pink-500"><i className="fa-solid fa-gift"></i></div><div><div className="text-xs text-gray-400 font-medium">Next Birthday In</div><div className="text-lg font-bold text-gray-800">{ageData.daysToNextBday} days</div></div></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <AdModal isOpen={showAd} onClose={() => setShowAd(false)} onReward={() => setPremiumUnlocked(true)} />
+        </div>
+      );
+    }
+
+    // --- MathCalculator Component ---
+    function MathCalculator() {
+      const [expression, setExpression] = useState('');
+      const [result, setResult] = useState('');
+      const [premiumUnlocked, setPremiumUnlocked] = useState(false);
+      const [showAd, setShowAd] = useState(false);
+      const [stepByStep, setStepByStep] = useState(null);
+
+      const handleInput = (val) => { setExpression(prev => prev + val); setResult(''); setPremiumUnlocked(false); setStepByStep(null); };
+      const handleClear = () => { setExpression(''); setResult(''); setPremiumUnlocked(false); setStepByStep(null); };
+      const handleDelete = () => { setExpression(prev => prev.slice(0, -1)); setResult(''); setPremiumUnlocked(false); };
+
+      const generateStepByStep = (expr, res) => {
+        setStepByStep([
+          `1. Identify the expression: ${expr}`,
+          `2. Parse operands and operators following standard precedence (BODMAS/PEMDAS)`,
+          `3. Execute mathematical operations step-by-step`,
+          `4. Arrive at final calculated result: ${res}`
+        ]);
+      };
+
+      const calculateResult = () => {
+        try {
+          if (!expression) return;
+          const sanitizedExpr = expression.replace(/×/g, '*').replace(/÷/g, '/');
+          const calculated = new Function('return ' + sanitizedExpr)();
+          const formattedResult = Number.isInteger(calculated) ? calculated.toString() : calculated.toFixed(4);
+          setResult(formattedResult);
+          generateStepByStep(expression, formattedResult);
+        } catch (e) {
+          setResult('Error');
+        }
+      };
+
+      const Btn = ({ children, onClick, className = '', variant = 'default' }) => {
+        const baseStyle = "h-16 rounded-2xl flex items-center justify-center text-xl font-bold transition-transform active:scale-90 select-none cursor-pointer";
+        let variants = {
+          default: "bg-surface shadow-neuSm text-gray-700 hover:text-primary",
+          primary: "bg-primary text-white shadow-md shadow-primary/40",
+          operator: "bg-indigo-50 text-primary shadow-neuSm",
+          action: "bg-red-50 text-red-500 shadow-neuSm"
+        };
+        return <div onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</div>;
+      };
+
+      return (
+        <div className="p-6 h-full flex flex-col gap-6 pb-20">
+          <div className="bg-surface p-6 rounded-3xl shadow-neuPressed flex flex-col justify-end min-h-[140px] break-all">
+            <div className="text-gray-400 text-lg text-right font-medium min-h-[28px]">{expression || '0'}</div>
+            <div className="text-4xl text-right font-bold text-gray-800 mt-2 min-h-[40px]">{result ? `= ${result}` : ''}</div>
+          </div>
+
+          <div className="min-h-[60px] flex items-center justify-center">
+            {result && result !== 'Error' && !premiumUnlocked && (
+              <button onClick={() => setShowAd(true)} className="w-full bg-primary hover:bg-primaryHover text-white py-3 rounded-2xl font-bold shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                <i className="fa-solid fa-lock-open"></i> Watch Ad for Step-by-Step
+              </button>
+            )}
+            {premiumUnlocked && stepByStep && (
+              <div className="w-full bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-2xl shadow-neuSm border border-white flex flex-col gap-3">
+                <h3 className="text-primary text-sm font-bold flex items-center gap-2"><i className="fa-solid fa-lightbulb"></i> Step-by-step solution</h3>
+                <div className="text-sm text-gray-600 space-y-2">
+                  {stepByStep.map((step, i) => <div key={i} className="bg-white p-2 rounded-lg shadow-sm border border-indigo-50">{step}</div>)}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-4 gap-4 mt-auto">
+            <Btn variant="action" onClick={handleClear}>C</Btn>
+            <Btn variant="action" onClick={handleDelete}><i className="fa-solid fa-delete-left"></i></Btn>
+            <Btn variant="operator" onClick={() => handleInput('%')}>%</Btn>
+            <Btn variant="operator" onClick={() => handleInput('/')}><i className="fa-solid fa-divide"></i></Btn>
+
+            <Btn onClick={() => handleInput('7')}>7</Btn>
+            <Btn onClick={() => handleInput('8')}>8</Btn>
+            <Btn onClick={() => handleInput('9')}>9</Btn>
+            <Btn variant="operator" onClick={() => handleInput('*')}><i className="fa-solid fa-xmark"></i></Btn>
+
+            <Btn onClick={() => handleInput('4')}>4</Btn>
+            <Btn onClick={() => handleInput('5')}>5</Btn>
+            <Btn onClick={() => handleInput('6')}>6</Btn>
+            <Btn variant="operator" onClick={() => handleInput('-')}><i className="fa-solid fa-minus"></i></Btn>
+
+            <Btn onClick={() => handleInput('1')}>1</Btn>
+            <Btn onClick={() => handleInput('2')}>2</Btn>
+            <Btn onClick={() => handleInput('3')}>3</Btn>
+            <Btn variant="operator" onClick={() => handleInput('+')}><i className="fa-solid fa-plus"></i></Btn>
+
+            <Btn onClick={() => handleInput('0')} className="col-span-2">0</Btn>
+            <Btn onClick={() => handleInput('.')}>.</Btn>
+            <Btn variant="primary" onClick={calculateResult}><i className="fa-solid fa-equals"></i></Btn>
+          </div>
+
+          <AdModal isOpen={showAd} onClose={() => setShowAd(false)} onReward={() => setPremiumUnlocked(true)} />
+        </div>
+      );
+    }
+
+    // --- Main App Component ---
+    function App() {
+      const [activeTab, setActiveTab] = useState('age');
+      return (
+        <div className="flex flex-col h-full w-full bg-background">
+          <div className="pt-8 pb-4 px-6 rounded-b-3xl shadow-sm bg-surface z-10 flex flex-col items-center">
+            <h1 className="text-xl font-bold text-gray-800 mb-4 tracking-tight">Mini Tools</h1>
+            <div className="flex w-full bg-background p-1 rounded-2xl shadow-neuPressed">
+              <button onClick={() => setActiveTab('age')} className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl transition-all duration-300 ${activeTab === 'age' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="fa-solid fa-calendar-check"></i><span className="font-semibold text-sm">Age</span>
+              </button>
+              <button onClick={() => setActiveTab('math')} className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl transition-all duration-300 ${activeTab === 'math' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="fa-solid fa-calculator"></i><span className="font-semibold text-sm">Math</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar relative">
+            {activeTab === 'age' ? <AgeCalculator /> : <MathCalculator />}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
